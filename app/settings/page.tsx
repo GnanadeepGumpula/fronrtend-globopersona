@@ -14,17 +14,52 @@ import {
   Building2, 
   Bell, 
   Shield, 
-  Palette,
   Save
 } from 'lucide-react'
+import { useToast } from '@/components/ui/use-toast'
+import { loadBrowserSettings, saveBrowserSettings, type BrowserSettings } from '@/lib/browser-mock-store'
 
 export default function SettingsPage() {
-  const [notifications, setNotifications] = useState({
-    emailReports: true,
-    campaignAlerts: true,
-    weeklyDigest: false,
-    securityAlerts: true
-  })
+  const [settings, setSettings] = useState<BrowserSettings>(() => loadBrowserSettings())
+  const { toast } = useToast()
+
+  const updateProfile = (field: keyof BrowserSettings['profile'], value: string) => {
+    setSettings((prev) => {
+      const next = { ...prev, profile: { ...prev.profile, [field]: value } }
+      saveBrowserSettings(next)
+      return next
+    })
+  }
+
+  const updateCompany = (field: keyof BrowserSettings['company'], value: string) => {
+    setSettings((prev) => {
+      const next = { ...prev, company: { ...prev.company, [field]: value } }
+      saveBrowserSettings(next)
+      return next
+    })
+  }
+
+  const updateNotifications = (field: keyof BrowserSettings['notifications'], value: boolean) => {
+    setSettings((prev) => {
+      const next = { ...prev, notifications: { ...prev.notifications, [field]: value } }
+      saveBrowserSettings(next)
+      return next
+    })
+  }
+
+  const handleSaveProfile = () => {
+    saveBrowserSettings(settings)
+    toast({ title: 'Saved', description: 'Profile changes saved in browser storage.' })
+  }
+
+  const handleSaveCompany = () => {
+    saveBrowserSettings(settings)
+    toast({ title: 'Saved', description: 'Company details saved in browser storage.' })
+  }
+
+  const handleUpdatePassword = () => {
+    toast({ title: 'Password', description: 'Password updated (mock).' })
+  }
 
   return (
     <DashboardLayout 
@@ -47,22 +82,22 @@ export default function SettingsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
-                <Input id="firstName" defaultValue="Yash" />
+                  <Input id="firstName" value={settings.profile.firstName} onChange={(e) => updateProfile('firstName', e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lastName">Last Name</Label>
-                <Input id="lastName" defaultValue="Doe" />
+                  <Input id="lastName" value={settings.profile.lastName} onChange={(e) => updateProfile('lastName', e.target.value)} />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
-              <Input id="email" type="email" defaultValue="john.doe@company.com" />
+                <Input id="email" type="email" value={settings.profile.email} onChange={(e) => updateProfile('email', e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="timezone">Timezone</Label>
-              <Input id="timezone" defaultValue="America/New_York (EST)" />
+                <Input id="timezone" value={settings.profile.timezone} onChange={(e) => updateProfile('timezone', e.target.value)} />
             </div>
-            <Button className="mt-2">
+            <Button className="mt-2" onClick={handleSaveProfile}>
               <Save className="mr-2 h-4 w-4" />
               Save Changes
             </Button>
@@ -83,13 +118,14 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="companyName">Company Name</Label>
-              <Input id="companyName" defaultValue="Globopersona" />
+              <Input id="companyName" value={settings.company.companyName} onChange={(e) => updateCompany('companyName', e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="address">Physical Address</Label>
               <Textarea 
                 id="address" 
-                defaultValue="123 Business Street&#10;New York, NY 10001&#10;United States"
+                value={settings.company.address}
+                onChange={(e) => updateCompany('address', e.target.value)}
                 className="min-h-[80px]"
               />
               <p className="text-xs text-muted-foreground">
@@ -98,9 +134,9 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="replyTo">Default Reply-To Email</Label>
-              <Input id="replyTo" type="email" defaultValue="support@acme.com" />
+              <Input id="replyTo" type="email" value={settings.company.replyTo} onChange={(e) => updateCompany('replyTo', e.target.value)} />
             </div>
-            <Button className="mt-2">
+            <Button className="mt-2" onClick={handleSaveCompany}>
               <Save className="mr-2 h-4 w-4" />
               Save Changes
             </Button>
@@ -127,10 +163,8 @@ export default function SettingsPage() {
                 </p>
               </div>
               <Switch 
-                checked={notifications.emailReports}
-                onCheckedChange={(checked) => 
-                  setNotifications(prev => ({ ...prev, emailReports: checked }))
-                }
+                checked={settings.notifications.emailReports}
+                onCheckedChange={(checked) => updateNotifications('emailReports', checked)}
               />
             </div>
             <Separator />
@@ -142,10 +176,8 @@ export default function SettingsPage() {
                 </p>
               </div>
               <Switch 
-                checked={notifications.campaignAlerts}
-                onCheckedChange={(checked) => 
-                  setNotifications(prev => ({ ...prev, campaignAlerts: checked }))
-                }
+                checked={settings.notifications.campaignAlerts}
+                onCheckedChange={(checked) => updateNotifications('campaignAlerts', checked)}
               />
             </div>
             <Separator />
@@ -157,10 +189,8 @@ export default function SettingsPage() {
                 </p>
               </div>
               <Switch 
-                checked={notifications.weeklyDigest}
-                onCheckedChange={(checked) => 
-                  setNotifications(prev => ({ ...prev, weeklyDigest: checked }))
-                }
+                checked={settings.notifications.weeklyDigest}
+                onCheckedChange={(checked) => updateNotifications('weeklyDigest', checked)}
               />
             </div>
             <Separator />
@@ -172,10 +202,8 @@ export default function SettingsPage() {
                 </p>
               </div>
               <Switch 
-                checked={notifications.securityAlerts}
-                onCheckedChange={(checked) => 
-                  setNotifications(prev => ({ ...prev, securityAlerts: checked }))
-                }
+                checked={settings.notifications.securityAlerts}
+                onCheckedChange={(checked) => updateNotifications('securityAlerts', checked)}
               />
             </div>
           </CardContent>
@@ -207,33 +235,9 @@ export default function SettingsPage() {
                 <Input id="confirmPassword" type="password" />
               </div>
             </div>
-            <Button className="mt-2">
+            <Button className="mt-2" onClick={handleUpdatePassword}>
               Update Password
             </Button>
-          </CardContent>
-        </Card>
-
-        {/* Appearance Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Palette className="h-5 w-5 text-primary" />
-              Appearance
-            </CardTitle>
-            <CardDescription>
-              Customize how Globopersona looks for you
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-foreground">Dark Mode</p>
-                <p className="text-sm text-muted-foreground">
-                  Use dark theme for the dashboard
-                </p>
-              </div>
-              <Switch defaultChecked />
-            </div>
           </CardContent>
         </Card>
       </div>

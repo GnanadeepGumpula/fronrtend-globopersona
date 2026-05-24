@@ -4,6 +4,9 @@ export interface Campaign {
   id: string
   name: string
   subject: string
+  preheader?: string
+  audienceId?: string
+  content?: string
   status: 'draft' | 'scheduled' | 'sent' | 'active'
   openRate: number
   clickRate: number

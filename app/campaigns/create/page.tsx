@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useToast } from '@/components/ui/use-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { audiences } from '@/lib/mock-data'
+import { addCampaign } from '@/lib/browser-mock-store'
 import { 
   ArrowLeft, 
   Save, 
@@ -54,6 +56,7 @@ export default function CreateCampaignPage() {
   })
   const [errors, setErrors] = useState<FormErrors>({})
   const [isSaving, setIsSaving] = useState(false)
+  const { toast } = useToast()
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
@@ -77,9 +80,22 @@ export default function CreateCampaignPage() {
 
   const handleSaveDraft = async () => {
     setIsSaving(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const newCampaignId = String(Date.now())
+    addCampaign({
+      id: newCampaignId,
+      name: formData.name || 'Untitled Draft',
+      subject: formData.subject || 'Draft campaign',
+      preheader: formData.preheader,
+      audienceId: formData.audience,
+      content: formData.content,
+      status: 'draft',
+      openRate: 0,
+      clickRate: 0,
+      recipients: audiences.find((audience) => audience.id === formData.audience)?.count ?? 0,
+      createdAt: new Date().toISOString(),
+    })
     setIsSaving(false)
+    toast({ title: 'Draft saved', description: 'Your campaign was saved as a draft.' })
     router.push('/campaigns')
   }
 
@@ -87,9 +103,22 @@ export default function CreateCampaignPage() {
     if (!validateForm()) return
     
     setIsSaving(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    addCampaign({
+      id: String(Date.now()),
+      name: formData.name,
+      subject: formData.subject,
+      preheader: formData.preheader,
+      audienceId: formData.audience,
+      content: formData.content,
+      status: 'sent',
+      openRate: 0,
+      clickRate: 0,
+      recipients: audiences.find((audience) => audience.id === formData.audience)?.count ?? 0,
+      createdAt: new Date().toISOString(),
+      sentAt: new Date().toISOString(),
+    })
     setIsSaving(false)
+    toast({ title: 'Campaign sent', description: 'Your campaign has been queued for delivery.' })
     router.push('/campaigns')
   }
 

@@ -1,6 +1,7 @@
 'use client'
 
-import { Bell, Search, ChevronDown } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Bell, Search, ChevronDown, SunMoon, CheckCheck, Mail, CalendarDays, MessageSquareText } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,6 +13,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/use-toast'
 
 interface HeaderProps {
   title: string
@@ -19,6 +22,21 @@ interface HeaderProps {
 }
 
 export function Header({ title, description }: HeaderProps) {
+  const router = useRouter()
+  const { toast } = useToast()
+  const [theme, setThemeState] = useState<'light' | 'dark'>('light')
+
+  useEffect(() => {
+    const storedTheme = window.localStorage.getItem('theme') === 'dark' ? 'dark' : 'light'
+    setThemeState(storedTheme)
+  }, [])
+
+  const applyTheme = (nextTheme: 'light' | 'dark') => {
+    document.documentElement.classList.toggle('dark', nextTheme === 'dark')
+    document.documentElement.classList.toggle('light', nextTheme === 'light')
+    window.localStorage.setItem('theme', nextTheme)
+    setThemeState(nextTheme)
+  }
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/95 px-4 lg:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="ml-12 lg:ml-0">
@@ -46,11 +64,56 @@ export function Header({ title, description }: HeaderProps) {
         </Button>
 
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5 text-muted-foreground" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
-          <span className="sr-only">Notifications</span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell className="h-5 w-5 text-muted-foreground" />
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
+              <span className="sr-only">Notifications</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => router.push('/campaigns')}>
+              <Mail className="mr-2 h-4 w-4" />
+              New campaign sent
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/analytics')}>
+              <CalendarDays className="mr-2 h-4 w-4" />
+              Weekly report is ready
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/contacts')}>
+              <MessageSquareText className="mr-2 h-4 w-4" />
+              New contact activity
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => toast({ title: 'Notifications', description: 'Marked all as read (mock).' })}>
+              <CheckCheck className="mr-2 h-4 w-4" />
+              Mark all as read
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Theme */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="hidden sm:inline-flex">
+              <SunMoon className="h-5 w-5 text-muted-foreground" />
+              <span className="sr-only">Change theme</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Theme</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => applyTheme('light')}>
+              Light {theme === 'light' ? '•' : ''}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => applyTheme('dark')}>
+              Dark {theme === 'dark' ? '•' : ''}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* User Menu */}
         <DropdownMenu>
@@ -72,11 +135,11 @@ export function Header({ title, description }: HeaderProps) {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem>Billing</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/settings')}>Profile</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/settings')}>Settings</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => toast({ title: 'Billing', description: 'Open billing portal (mock).' })}>Billing</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
+            <DropdownMenuItem className="text-destructive" onClick={() => toast({ title: 'Logged out', description: 'You have been logged out (mock).' })}>
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>

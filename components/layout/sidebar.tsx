@@ -107,7 +107,7 @@ export function Sidebar() {
                 Check our documentation or contact support.
               </p>
               <Link
-                href="#"
+                href="/help"
                 className="mt-3 inline-flex text-xs font-medium text-sidebar-primary hover:underline"
               >
                 View Documentation

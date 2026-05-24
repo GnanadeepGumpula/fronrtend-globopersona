@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/use-toast'
 import Link from 'next/link'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { Button } from '@/components/ui/button'
@@ -28,7 +30,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { campaigns, Campaign } from '@/lib/mock-data'
+import { type Campaign } from '@/lib/mock-data'
+import { loadCampaigns, removeCampaign, addCampaign } from '@/lib/browser-mock-store'
 import { 
   Plus, 
   Search, 
@@ -55,13 +58,18 @@ function formatDate(dateString: string) {
   return new Date(dateString).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
-    year: 'numeric'
+    year: 'numeric',
+    timeZone: 'UTC'
   })
 }
 
 export default function CampaignsPage() {
+  const router = useRouter()
+  const { toast } = useToast()
+
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [campaigns, setCampaigns] = useState<Campaign[]>(() => loadCampaigns())
 
   const filteredCampaigns = campaigns.filter((campaign) => {
     const matchesSearch = campaign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -69,6 +77,32 @@ export default function CampaignsPage() {
     const matchesStatus = statusFilter === 'all' || campaign.status === statusFilter
     return matchesSearch && matchesStatus
   })
+
+  const handleView = (id: string) => router.push(`/campaigns/${id}`)
+
+  const handleEdit = (id: string) => router.push(`/campaigns/${id}/edit`)
+
+  const handleDuplicate = (c: Campaign) => {
+    const copy: Campaign = {
+      ...c,
+      id: String(Date.now()),
+      name: `${c.name} (Copy)`,
+      createdAt: new Date().toISOString(),
+      status: 'draft',
+      recipients: 0,
+      openRate: 0,
+      clickRate: 0,
+    }
+    const next = addCampaign(copy)
+    setCampaigns(next)
+    toast({ title: 'Campaign duplicated', description: `${c.name} was duplicated.` })
+  }
+
+  const handleDelete = (id: string) => {
+    const next = removeCampaign(id)
+    setCampaigns(next)
+    toast({ title: 'Campaign deleted', description: 'Campaign removed.' })
+  }
 
   return (
     <DashboardLayout 
@@ -159,7 +193,14 @@ export default function CampaignsPage() {
               </TableRow>
             ) : (
               filteredCampaigns.map((campaign) => (
-                <CampaignRow key={campaign.id} campaign={campaign} />
+                <CampaignRow
+                  key={campaign.id}
+                  campaign={campaign}
+                  onView={() => handleView(campaign.id)}
+                  onEdit={() => handleEdit(campaign.id)}
+                  onDuplicate={() => handleDuplicate(campaign)}
+                  onDelete={() => handleDelete(campaign.id)}
+                />
               ))
             )}
           </TableBody>
@@ -174,7 +215,7 @@ export default function CampaignsPage() {
   )
 }
 
-function CampaignRow({ campaign }: { campaign: Campaign }) {
+function CampaignRow({ campaign, onView, onEdit, onDuplicate, onDelete }: { campaign: Campaign; onView?: () => void; onEdit?: () => void; onDuplicate?: () => void; onDelete?: () => void }) {
   return (
     <TableRow className="group">
       <TableCell className="pl-6">
@@ -237,20 +278,20 @@ function CampaignRow({ campaign }: { campaign: Campaign }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onView?.()}>
               <Eye className="mr-2 h-4 w-4" />
               View Details
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onEdit?.()}>
               <Pencil className="mr-2 h-4 w-4" />
               Edit Campaign
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDuplicate?.()}>
               <Copy className="mr-2 h-4 w-4" />
               Duplicate
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
+            <DropdownMenuItem className="text-destructive" onClick={() => onDelete?.()}>
               <Trash2 className="mr-2 h-4 w-4" />
               Delete
             </DropdownMenuItem>

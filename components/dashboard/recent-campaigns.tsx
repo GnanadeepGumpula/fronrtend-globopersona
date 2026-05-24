@@ -1,3 +1,5 @@
+"use client"
+
 import Link from 'next/link'
 import { Campaign } from '@/lib/mock-data'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +20,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/use-toast'
 
 interface RecentCampaignsProps {
   campaigns: Campaign[]
@@ -32,6 +36,8 @@ const statusStyles = {
 
 export function RecentCampaigns({ campaigns }: RecentCampaignsProps) {
   const recentCampaigns = campaigns.slice(0, 5)
+  const router = useRouter()
+  const { toast } = useToast()
 
   return (
     <div className="rounded-xl border border-border bg-card">
@@ -100,10 +106,26 @@ export function RecentCampaigns({ campaigns }: RecentCampaignsProps) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>View Details</DropdownMenuItem>
-                    <DropdownMenuItem>Edit Campaign</DropdownMenuItem>
-                    <DropdownMenuItem>Duplicate</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push(`/campaigns/${campaign.id}`)}>View Details</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push(`/campaigns/${campaign.id}/edit`)}>Edit Campaign</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
+                      const copy = { ...campaign, id: String(Date.now()), name: `${campaign.name} (Copy)`, createdAt: new Date().toISOString(), status: 'draft', recipients: 0, openRate: 0, clickRate: 0 }
+                      // mutate mock data
+                      // eslint-disable-next-line @typescript-eslint/no-var-requires
+                      const md = require('@/lib/mock-data')
+                      md.campaigns.unshift(copy)
+                      toast({ title: 'Duplicated', description: `${campaign.name} duplicated.` })
+                      router.refresh()
+                    }}>Duplicate</DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={() => {
+                      // remove from mock data
+                      // eslint-disable-next-line @typescript-eslint/no-var-requires
+                      const md = require('@/lib/mock-data')
+                      const idx = md.campaigns.findIndex((c: any) => c.id === campaign.id)
+                      if (idx > -1) md.campaigns.splice(idx,1)
+                      toast({ title: 'Deleted', description: `${campaign.name} deleted.` })
+                      router.refresh()
+                    }}>Delete</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

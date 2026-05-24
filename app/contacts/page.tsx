@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/use-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,7 +29,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { contacts, Contact } from '@/lib/mock-data'
+import { type Contact } from '@/lib/mock-data'
+import { loadContacts, addContact, removeContact } from '@/lib/browser-mock-store'
 import { 
   Plus, 
   Search, 
@@ -53,13 +56,18 @@ function formatDate(dateString: string) {
   return new Date(dateString).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
-    year: 'numeric'
+    year: 'numeric',
+    timeZone: 'UTC'
   })
 }
 
 export default function ContactsPage() {
+  const router = useRouter()
+  const { toast } = useToast()
+
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [contacts, setContacts] = useState<Contact[]>(() => loadContacts())
 
   const filteredContacts = contacts.filter((contact) => {
     const matchesSearch = contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -67,6 +75,53 @@ export default function ContactsPage() {
     const matchesStatus = statusFilter === 'all' || contact.status === statusFilter
     return matchesSearch && matchesStatus
   })
+
+  // Handlers
+  const handleExport = () => {
+    const all = contacts
+    const header = ['id', 'name', 'email', 'status', 'tags', 'createdAt', 'lastActivity']
+    const rows = all.map(c => [c.id, c.name, c.email, c.status, c.tags.join('|'), c.createdAt, c.lastActivity || ''])
+    const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'contacts.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+    toast({ title: 'Export started', description: 'Downloading contacts CSV' })
+  }
+
+  const handleAddContact = () => {
+    const name = window.prompt('Contact name')
+    const email = name ? window.prompt('Contact email') : null
+    if (!name || !email) return
+    const newContact: Contact = {
+      id: String(Date.now()),
+      name,
+      email,
+      status: 'subscribed',
+      tags: [],
+      createdAt: new Date().toISOString(),
+    }
+    const next = addContact(newContact)
+    setContacts(next)
+    toast({ title: 'Contact added', description: `${name} was added.` })
+  }
+
+  const handleDelete = (id: string) => {
+    const next = removeContact(id)
+    setContacts(next)
+    toast({ title: 'Contact deleted', description: 'Contact removed.' })
+  }
+
+  const handleSendEmail = (contact: Contact) => {
+    toast({ title: 'Send email', description: `Pretend sending email to ${contact.email}` })
+  }
+
+  const handleEditContact = (id: string) => {
+    router.push(`/contacts/${id}/edit`)
+  }
 
   return (
     <DashboardLayout 
@@ -100,11 +155,11 @@ export default function ContactsPage() {
           </Select>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => handleExport()}>
             <Download className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">Export</span>
           </Button>
-          <Button>
+          <Button onClick={() => handleAddContact()}>
             <UserPlus className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">Add Contact</span>
           </Button>
@@ -142,7 +197,7 @@ export default function ContactsPage() {
                     <div className="flex flex-col items-center justify-center">
                       <Mail className="h-8 w-8 text-muted-foreground/50" />
                       <p className="mt-2 text-sm text-muted-foreground">No contacts found</p>
-                      <Button variant="link" size="sm" className="mt-1">
+                      <Button variant="link" size="sm" className="mt-1" onClick={handleAddContact}>
                         Add your first contact
                       </Button>
                     </div>
@@ -150,7 +205,7 @@ export default function ContactsPage() {
                 </TableRow>
               ) : (
                 filteredContacts.map((contact) => (
-                  <ContactRow key={contact.id} contact={contact} />
+                  <ContactRow key={contact.id} contact={contact} onDelete={() => handleDelete(contact.id)} onSend={() => handleSendEmail(contact)} onEdit={() => handleEditContact(contact.id)} />
                 ))
               )}
             </TableBody>
@@ -181,7 +236,7 @@ export default function ContactsPage() {
   )
 }
 
-function ContactRow({ contact }: { contact: Contact }) {
+function ContactRow({ contact, onDelete, onSend, onEdit }: { contact: Contact; onDelete?: () => void; onSend?: () => void; onEdit?: () => void }) {
   return (
     <TableRow className="group">
       <TableCell className="pl-6">
@@ -234,21 +289,21 @@ function ContactRow({ contact }: { contact: Contact }) {
               <span className="sr-only">Actions</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>
-              <Mail className="mr-2 h-4 w-4" />
-              Send Email
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit Contact
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onSend?.()}>
+                <Mail className="mr-2 h-4 w-4" />
+                Send Email
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit?.()}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit Contact
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive" onClick={() => onDelete?.()}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>
     </TableRow>
