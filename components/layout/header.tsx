@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Bell, Search, ChevronDown, SunMoon, CheckCheck, Mail, CalendarDays, MessageSquareText } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,16 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/use-toast'
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '@/components/ui/command'
+import { loadCampaigns, loadContacts } from '@/lib/browser-mock-store'
 
 interface HeaderProps {
   title: string
@@ -25,17 +35,62 @@ export function Header({ title, description }: HeaderProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [theme, setThemeState] = useState<'light' | 'dark'>('light')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
 
   useEffect(() => {
     const storedTheme = window.localStorage.getItem('theme') === 'dark' ? 'dark' : 'light'
     setThemeState(storedTheme)
   }, [])
 
+  const searchResults = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return { campaigns: [], contacts: [] }
+
+    const campaigns = loadCampaigns().filter((campaign) =>
+      campaign.name.toLowerCase().includes(query) ||
+      campaign.subject.toLowerCase().includes(query)
+    )
+    const contacts = loadContacts().filter((contact) =>
+      contact.name.toLowerCase().includes(query) ||
+      contact.email.toLowerCase().includes(query)
+    )
+
+    return { campaigns, contacts }
+  }, [searchQuery])
+
   const applyTheme = (nextTheme: 'light' | 'dark') => {
     document.documentElement.classList.toggle('dark', nextTheme === 'dark')
     document.documentElement.classList.toggle('light', nextTheme === 'light')
     window.localStorage.setItem('theme', nextTheme)
     setThemeState(nextTheme)
+  }
+
+  const openSearch = () => {
+    setSearchOpen(true)
+  }
+
+  const handleSearchSubmit = () => {
+    const query = searchQuery.trim().toLowerCase()
+
+    if (!query) {
+      setSearchOpen(true)
+      return
+    }
+
+    if (searchResults.campaigns[0]) {
+      router.push(`/campaigns/${searchResults.campaigns[0].id}`)
+      setSearchOpen(false)
+      return
+    }
+
+    if (searchResults.contacts[0]) {
+      router.push(`/contacts/${searchResults.contacts[0].id}`)
+      setSearchOpen(false)
+      return
+    }
+
+    toast({ title: 'No results', description: `No campaigns or contacts matched "${searchQuery}".` })
   }
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/95 px-4 lg:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -52,13 +107,22 @@ export function Header({ title, description }: HeaderProps) {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search..."
+            placeholder="Search campaigns or contacts..."
             className="w-48 lg:w-64 pl-9 bg-secondary/50 border-transparent focus:border-border"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={openSearch}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                handleSearchSubmit()
+              }
+            }}
           />
         </div>
 
         {/* Mobile Search Button */}
-        <Button variant="ghost" size="icon" className="md:hidden">
+        <Button variant="ghost" size="icon" className="md:hidden" onClick={openSearch}>
           <Search className="h-5 w-5 text-muted-foreground" />
           <span className="sr-only">Search</span>
         </Button>
@@ -98,7 +162,7 @@ export function Header({ title, description }: HeaderProps) {
         {/* Theme */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="hidden sm:inline-flex">
+            <Button variant="ghost" size="icon" className="inline-flex">
               <SunMoon className="h-5 w-5 text-muted-foreground" />
               <span className="sr-only">Change theme</span>
             </Button>
@@ -145,6 +209,66 @@ export function Header({ title, description }: HeaderProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <CommandDialog
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        title="Search Globopersona"
+        description="Search campaigns and contacts"
+        className="sm:max-w-2xl"
+      >
+        <CommandInput
+          placeholder="Search campaigns or contacts..."
+          value={searchQuery}
+          onValueChange={setSearchQuery}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              handleSearchSubmit()
+            }
+          }}
+        />
+        <CommandList>
+          <CommandEmpty>No campaigns or contacts found.</CommandEmpty>
+          {searchResults.campaigns.length > 0 && (
+            <CommandGroup heading="Campaigns">
+              {searchResults.campaigns.map((campaign) => (
+                <CommandItem
+                  key={`campaign-${campaign.id}`}
+                  onSelect={() => {
+                    router.push(`/campaigns/${campaign.id}`)
+                    setSearchOpen(false)
+                  }}
+                >
+                  <div className="flex flex-col">
+                    <span>{campaign.name}</span>
+                    <span className="text-xs text-muted-foreground">{campaign.subject}</span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+          {searchResults.campaigns.length > 0 && searchResults.contacts.length > 0 && <CommandSeparator />}
+          {searchResults.contacts.length > 0 && (
+            <CommandGroup heading="Contacts">
+              {searchResults.contacts.map((contact) => (
+                <CommandItem
+                  key={`contact-${contact.id}`}
+                  onSelect={() => {
+                    router.push(`/contacts/${contact.id}`)
+                    setSearchOpen(false)
+                  }}
+                >
+                  <div className="flex flex-col">
+                    <span>{contact.name}</span>
+                    <span className="text-xs text-muted-foreground">{contact.email}</span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+        </CommandList>
+      </CommandDialog>
     </header>
   )
 }
